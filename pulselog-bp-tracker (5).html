@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="PulseLog"/>
+<meta name="theme-color" content="#E24B4A"/>
+<title>PulseLog — BP Tracker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --red:#E24B4A;--red-light:#FCEBEB;--red-dark:#A32D2D;
+  --green:#639922;--green-light:#EAF3DE;
+  --amber:#BA7517;--amber-light:#FAEEDA;
+  --blue:#185FA5;--blue-light:#E6F1FB;
+  --purple:#534AB7;--purple-light:#EEEDFE;
+  --bg:#f8f7f4;--card:#fff;--border:rgba(0,0,0,0.09);
+  --text:#1a1a1a;--muted:#888;
+}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);}
+body{max-width:430px;margin:0 auto;position:relative;}
+.screen{display:none;flex-direction:column;min-height:100vh;}
+.screen.active{display:flex;}
+.header{background:#fff;padding:52px 20px 12px;border-bottom:0.5px solid var(--border);position:sticky;top:0;z-index:10;}
+.header-top{display:flex;align-items:center;justify-content:space-between;}
+.app-logo{display:flex;align-items:center;gap:8px;}
+.logo-icon{width:34px;height:34px;background:var(--red);border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.logo-icon svg{width:20px;height:20px;fill:#fff;}
+.app-name{font-size:18px;font-weight:600;letter-spacing:-0.3px;}
+.content{flex:1;padding:16px 20px 110px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+
+/* Cards */
+.card{background:#fff;border-radius:16px;border:0.5px solid var(--border);overflow:hidden;margin-bottom:14px;}
+.card-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;padding:13px 16px 9px;border-bottom:0.5px solid var(--border);}
+.form-row{display:flex;align-items:center;padding:13px 16px;border-bottom:0.5px solid rgba(0,0,0,0.05);}
+.form-row:last-child{border-bottom:none;}
+.form-label{font-size:14px;color:var(--muted);width:90px;flex-shrink:0;}
+.form-row input,.form-row select{flex:1;border:none;outline:none;font-size:15px;font-family:'DM Sans',sans-serif;font-weight:500;text-align:right;background:transparent;color:var(--text);}
+.btn-red{width:100%;padding:15px;background:var(--red);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.btn-outline{width:100%;padding:13px;background:transparent;color:var(--red);border:1.5px solid var(--red);border-radius:14px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:10px;}
+
+/* Profile */
+.profile-hero{background:linear-gradient(135deg,#E24B4A,#c0392b);border-radius:20px;padding:24px;color:#fff;margin-bottom:16px;text-align:center;}
+.profile-avatar{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.25);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;}
+.profile-name{font-size:22px;font-weight:600;}
+.profile-sub{font-size:13px;opacity:0.8;margin-top:4px;}
+.pstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:rgba(255,255,255,0.2);border-radius:12px;overflow:hidden;margin-top:16px;}
+.pstat{background:rgba(255,255,255,0.15);padding:12px 6px;text-align:center;}
+.pstat-val{font-size:18px;font-weight:600;}
+.pstat-lbl{font-size:10px;opacity:0.8;margin-top:2px;}
+
+/* Voice */
+.voice-panel{background:#fff;border-radius:20px;border:0.5px solid var(--border);padding:22px;margin-bottom:14px;text-align:center;}
+.voice-btn{width:84px;height:84px;border-radius:50%;background:var(--red-light);border:2px solid var(--red);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.voice-btn.listening{background:var(--red);animation:pulse-anim 1.2s ease infinite;}
+.voice-btn.listening .mic-fill{fill:#fff!important;}
+.voice-btn.listening .mic-stroke{stroke:#fff!important;}
+@keyframes pulse-anim{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,0.4);}50%{box-shadow:0 0 0 16px rgba(226,75,74,0);}}
+.voice-label{font-size:13px;color:var(--muted);font-weight:500;}
+.voice-hint{font-size:12px;color:var(--muted);margin-top:7px;line-height:1.6;}
+.voice-transcript{background:var(--bg);border-radius:10px;padding:10px 14px;margin-top:12px;font-size:12px;color:var(--text);text-align:left;min-height:38px;font-family:'DM Mono',monospace;display:none;}
+
+/* Reading fields */
+.reading-inputs{display:grid;grid-template-columns:1fr 1fr;}
+.reading-field{padding:15px 16px;border-bottom:0.5px solid rgba(0,0,0,0.05);border-right:0.5px solid rgba(0,0,0,0.05);}
+.reading-field:nth-child(2n){border-right:none;}
+.reading-field:nth-last-child(-n+2){border-bottom:none;}
+.rf-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;}
+.rf-unit{font-weight:400;}
+.rf-input{font-size:26px;font-weight:600;font-family:'DM Mono',monospace;width:100%;border:none;outline:none;background:transparent;color:var(--text);}
+.bp-badge{display:inline-flex;align-items:center;padding:7px 14px;border-radius:100px;font-size:12px;font-weight:600;margin-top:6px;}
+.badge-normal{background:var(--green-light);color:var(--green);}
+.badge-elevated{background:var(--amber-light);color:var(--amber);}
+.badge-high{background:var(--red-light);color:var(--red-dark);}
+
+/* History */
+.sum-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.sum-card{background:#fff;border-radius:14px;border:0.5px solid var(--border);padding:14px;}
+.sum-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+.sum-val{font-size:24px;font-weight:600;font-family:'DM Mono',monospace;margin:4px 0 2px;}
+.sum-sub{font-size:11px;color:var(--muted);}
+.filter-row{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+.filter-btn{padding:7px 16px;border-radius:100px;border:0.5px solid var(--border);background:#fff;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;color:var(--muted);-webkit-tap-highlight-color:transparent;}
+.filter-btn.active{background:var(--red);color:#fff;border-color:var(--red);}
+.reading-card{background:#fff;border-radius:14px;border:0.5px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.rc-circle{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;text-align:center;line-height:1.2;}
+.rc-circle.normal{background:var(--green-light);color:var(--green);}
+.rc-circle.elevated{background:var(--amber-light);color:var(--amber);}
+.rc-circle.high{background:var(--red-light);color:var(--red-dark);}
+.rc-reading{font-size:20px;font-weight:700;font-family:'DM Mono',monospace;}
+.rc-reading span{font-size:12px;font-weight:400;color:var(--muted);}
+.rc-meta{font-size:11px;color:var(--muted);margin-top:3px;}
+.rc-badge{margin-left:auto;font-size:10px;font-weight:600;padding:4px 9px;border-radius:100px;white-space:nowrap;}
+
+/* Trends */
+.trend-hero{background:#fff;border-radius:16px;border:0.5px solid var(--border);padding:16px;margin-bottom:14px;}
+.trend-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;}
+.chart-toggle{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.ctog{padding:6px 13px;border-radius:100px;border:0.5px solid var(--border);background:#fff;font-size:11px;font-weight:600;cursor:pointer;color:var(--muted);-webkit-tap-highlight-color:transparent;}
+.ctog.on-sys{background:var(--red-light);color:var(--red-dark);border-color:var(--red);}
+.ctog.on-dia{background:var(--blue-light);color:var(--blue);border-color:var(--blue);}
+.ctog.on-pulse{background:var(--purple-light);color:var(--purple);border-color:var(--purple);}
+.svg-chart-wrap{width:100%;overflow:hidden;border-radius:10px;background:var(--bg);padding:10px 0 0;}
+.insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.insight-card{background:#fff;border-radius:14px;border:0.5px solid var(--border);padding:14px;}
+.ic-icon{font-size:20px;margin-bottom:6px;}
+.ic-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;}
+.ic-val{font-size:17px;font-weight:600;margin-top:3px;}
+.ic-sub{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4;}
+.streak-bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:8px;}
+.streak-fill{height:100%;border-radius:4px;transition:width .4s;}
+.advice-list{padding:0 16px 14px;}
+.advice-item{display:flex;gap:10px;padding:9px 0;border-bottom:0.5px solid rgba(0,0,0,0.05);}
+.advice-item:last-child{border-bottom:none;}
+.advice-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.advice-text{font-size:13px;line-height:1.6;}
+
+/* Reminders */
+.reminder-item{display:flex;align-items:center;padding:14px 16px;border-bottom:0.5px solid rgba(0,0,0,0.05);}
+.reminder-item:last-child{border-bottom:none;}
+.reminder-info{flex:1;}
+.reminder-time{font-size:17px;font-weight:600;font-family:'DM Mono',monospace;}
+.reminder-label{font-size:12px;color:var(--muted);margin-top:2px;}
+.toggle{position:relative;width:46px;height:26px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:#ddd;border-radius:13px;cursor:pointer;transition:.3s;}
+.slider:before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s;}
+input:checked+.slider{background:var(--red);}
+input:checked+.slider:before{transform:translateX(20px);}
+.del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;padding:4px 8px;margin-left:8px;}
+
+/* Export */
+.export-card{background:#fff;border-radius:16px;border:0.5px solid var(--border);padding:18px;margin-bottom:14px;}
+.export-title{font-size:15px;font-weight:600;margin-bottom:6px;}
+.export-sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;}
+.export-btn{width:100%;padding:13px;background:var(--bg);color:var(--text);border:0.5px solid var(--border);border-radius:12px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;margin-bottom:8px;text-align:left;display:flex;align-items:center;gap:10px;-webkit-tap-highlight-color:transparent;}
+.export-btn:last-child{margin-bottom:0;}
+.install-step{display:flex;gap:12px;padding:10px 0;border-bottom:0.5px solid rgba(0,0,0,0.05);}
+.install-step:last-child{border-bottom:none;}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--red-light);color:var(--red-dark);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.step-text{font-size:13px;line-height:1.6;color:var(--text);}
+.step-text strong{font-weight:600;}
+.platform-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin:16px 0 8px;}
+
+/* Bottom nav */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:0.5px solid var(--border);display:flex;padding:10px 0 24px;z-index:20;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 0;-webkit-tap-highlight-color:transparent;}
+.nav-icon{width:22px;height:22px;}
+.nav-label{font-size:10px;font-weight:500;color:var(--muted);}
+.nav-item.active .nav-label{color:var(--red);}
+.nav-dot{width:4px;height:4px;border-radius:50%;background:var(--red);margin:0 auto;display:none;}
+.nav-item.active .nav-dot{display:block;}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:11px 20px;border-radius:100px;font-size:13px;font-weight:500;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- PROFILE -->
+<div id="screen-profile" class="screen active">
+  <div class="header"><div class="header-top"><div class="app-logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 21C12 21 4 13.5 4 8.5a8 8 0 0 1 16 0C20 13.5 12 21 12 21z"/></svg></div><span class="app-name">PulseLog</span></div><span style="font-size:13px;color:var(--muted);">Profile</span></div></div>
+  <div class="content">
+    <div class="profile-hero">
+      <div class="profile-avatar" id="profile-avatar">?</div>
+      <div class="profile-name" id="profile-display-name">Your Name</div>
+      <div class="profile-sub" id="profile-display-sub">Complete your profile</div>
+      <div class="pstats">
+        <div class="pstat"><div class="pstat-val" id="stat-readings">0</div><div class="pstat-lbl">Readings</div></div>
+        <div class="pstat"><div class="pstat-val" id="stat-avg-sys">—</div><div class="pstat-lbl">Avg Sys</div></div>
+        <div class="pstat"><div class="pstat-val" id="stat-avg-dia">—</div><div class="pstat-lbl">Avg Dia</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Personal info</div>
+      <div class="form-row"><label class="form-label">Name</label><input id="p-name" type="text" placeholder="Your name"/></div>
+      <div class="form-row"><label class="form-label">Age</label><input id="p-age" type="number" placeholder="—"/></div>
+      <div class="form-row"><label class="form-label">Sex</label><select id="p-sex"><option value="female">Female</option><option value="male">Male</option><option value="other">Other</option></select></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Body measurements</div>
+      <div class="form-row"><label class="form-label">Height</label><input id="p-height" type="number" placeholder="cm"/><span style="font-size:12px;color:var(--muted);margin-left:4px;">cm</span></div>
+      <div class="form-row"><label class="form-label">Weight</label><input id="p-weight" type="number" placeholder="kg"/><span style="font-size:12px;color:var(--muted);margin-left:4px;">kg</span></div>
+    </div>
+    <button class="btn-red" onclick="saveProfile()">Save Profile</button>
+  </div>
+</div>
+
+<!-- ADD READING -->
+<div id="screen-add" class="screen">
+  <div class="header"><div class="header-top"><div class="app-logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 21C12 21 4 13.5 4 8.5a8 8 0 0 1 16 0C20 13.5 12 21 12 21z"/></svg></div><span class="app-name">PulseLog</span></div><span style="font-size:13px;color:var(--muted);">New Reading</span></div></div>
+  <div class="content">
+    <div class="voice-panel">
+      <div class="voice-btn" id="voice-btn" onclick="toggleVoice()">
+        <svg viewBox="0 0 24 24" fill="none" width="32" height="32">
+          <path class="mic-fill" d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="var(--red)"/>
+          <path class="mic-stroke" d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="var(--red)" stroke-width="2" stroke-linecap="round"/>
+          <line class="mic-stroke" x1="12" y1="19" x2="12" y2="23" stroke="var(--red)" stroke-width="2" stroke-linecap="round"/>
+          <line class="mic-stroke" x1="8" y1="23" x2="16" y2="23" stroke="var(--red)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="voice-label" id="voice-label">Tap mic to speak</div>
+      <div class="voice-hint">Say: <strong>"130 over 85 pulse 72"</strong></div>
+      <div class="voice-transcript" id="voice-transcript"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Reading values</div>
+      <div class="reading-inputs">
+        <div class="reading-field"><div class="rf-label">Systolic <span class="rf-unit">mmHg</span></div><input class="rf-input" id="r-sys" type="number" placeholder="120" oninput="updateStatus()"/></div>
+        <div class="reading-field"><div class="rf-label">Diastolic <span class="rf-unit">mmHg</span></div><input class="rf-input" id="r-dia" type="number" placeholder="80" oninput="updateStatus()"/></div>
+        <div class="reading-field" style="border-bottom:none;"><div class="rf-label">Pulse <span class="rf-unit">bpm</span></div><input class="rf-input" id="r-pulse" type="number" placeholder="72"/></div>
+        <div class="reading-field" style="border-bottom:none;"><div class="rf-label">Date</div><input class="rf-input" id="r-date" type="date" style="font-size:13px;font-family:'DM Sans',sans-serif;"/></div>
+      </div>
+      <div style="padding:13px 16px;border-top:0.5px solid rgba(0,0,0,0.05);">
+        <div class="rf-label">Time</div>
+        <input type="time" id="r-time" style="font-size:15px;font-family:'DM Sans',sans-serif;border:none;outline:none;background:transparent;font-weight:500;width:100%;margin-top:5px;"/>
+      </div>
+      <div id="bp-status-row" style="padding:0 16px 13px;display:none;"><div class="bp-badge" id="bp-badge"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Notes</div>
+      <div class="form-row"><input id="r-notes" type="text" placeholder="e.g. morning, after exercise..." style="text-align:left;border:none;outline:none;font-size:14px;background:transparent;font-family:'DM Sans',sans-serif;flex:1;"/></div>
+    </div>
+    <button class="btn-red" onclick="addReading()">Save Reading</button>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div id="screen-history" class="screen">
+  <div class="header"><div class="header-top"><div class="app-logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 21C12 21 4 13.5 4 8.5a8 8 0 0 1 16 0C20 13.5 12 21 12 21z"/></svg></div><span class="app-name">PulseLog</span></div><span style="font-size:13px;color:var(--muted);">History</span></div></div>
+  <div class="content">
+    <div class="sum-grid">
+      <div class="sum-card"><div class="sum-label">Latest Sys</div><div class="sum-val" id="h-latest-sys">—</div><div class="sum-sub">mmHg systolic</div></div>
+      <div class="sum-card"><div class="sum-label">Latest Dia</div><div class="sum-val" id="h-latest-dia">—</div><div class="sum-sub">mmHg diastolic</div></div>
+      <div class="sum-card"><div class="sum-label">Latest Pulse</div><div class="sum-val" id="h-latest-pulse">—</div><div class="sum-sub">bpm</div></div>
+      <div class="sum-card"><div class="sum-label">7-day Avg Sys</div><div class="sum-val" id="h-avg-sys">—</div><div class="sum-sub">average</div></div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setFilter(7,this)">7 days</button>
+      <button class="filter-btn" onclick="setFilter(30,this)">30 days</button>
+      <button class="filter-btn" onclick="setFilter(90,this)">90 days</button>
+      <button class="filter-btn" onclick="setFilter(0,this)">All</button>
+    </div>
+    <div id="reading-list"></div>
+  </div>
+</div>
+
+<!-- TRENDS -->
+<div id="screen-trends" class="screen">
+  <div class="header"><div class="header-top"><div class="app-logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 21C12 21 4 13.5 4 8.5a8 8 0 0 1 16 0C20 13.5 12 21 12 21z"/></svg></div><span class="app-name">PulseLog</span></div><span style="font-size:13px;color:var(--muted);">Trends</span></div></div>
+  <div class="content" id="trend-content">
+    <div class="empty-state"><div style="font-size:44px;margin-bottom:12px;">📈</div><div style="font-weight:500;">No data yet</div><div style="font-size:13px;margin-top:6px;">Add at least 3 readings to see trends</div></div>
+  </div>
+</div>
+
+<!-- REMINDERS -->
+<div id="screen-reminders" class="screen">
+  <div class="header"><div class="header-top"><div class="app-logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 21C12 21 4 13.5 4 8.5a8 8 0 0 1 16 0C20 13.5 12 21 12 21z"/></svg></div><span class="app-name">PulseLog</span></div><span style="font-size:13px;color:var(--muted);">Reminders</span></div></div>
+  <div class="content">
+    <div class="card">
+      <div class="card-title">Add new reminder</div>
+      <div class="form-row"><label class="form-label">Time</label><input type="time" id="rem-time" style="border:none;outline:none;font-size:15px;font-weight:500;background:transparent;text-align:right;flex:1;color:var(--text);font-family:'DM Sans',sans-serif;"/></div>
+      <div class="form-row"><label class="form-label">Label</label><input id="rem-label" type="text" placeholder="Morning check" style="text-align:right;flex:1;border:none;outline:none;font-size:14px;background:transparent;font-family:'DM Sans',sans-serif;font-weight:500;color:var(--text);"/></div>
+      <div class="form-row"><label class="form-label">Repeat</label><select id="rem-repeat" style="flex:1;border:none;outline:none;font-size:14px;background:transparent;text-align:right;color:var(--text);font-family:'DM Sans',sans-serif;font-weight:500;"><option value="daily">Every day</option><option value="weekdays">Weekdays</option><option value="weekends">Weekends</option></select></div>
+      <div style="padding:13px 16px;"><button class="btn-red" style="margin:0;" onclick="addReminder()">Add Reminder</button></div>
+    </div>
+    <div class="card"><div class="card-title">Your reminders</div><div id="reminder-list"><div style="padding:22px;text-align:center;color:var(--muted);font-size:13px;">No reminders yet</div></div></div>
+  </div>
+</div>
+
+<!-- EXPORT & INSTALL -->
+<div id="screen-export" class="screen">
+  <div class="header"><div class="header-top"><div class="app-logo"><div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 21C12 21 4 13.5 4 8.5a8 8 0 0 1 16 0C20 13.5 12 21 12 21z"/></svg></div><span class="app-name">PulseLog</span></div><span style="font-size:13px;color:var(--muted);">Export & Install</span></div></div>
+  <div class="content">
+
+    <!-- Export Data -->
+    <div class="export-card">
+      <div class="export-title">📤 Export your data</div>
+      <div class="export-sub">Download all your BP readings to keep a backup or share with your doctor.</div>
+      <button class="export-btn" onclick="exportCSV()"><span style="font-size:20px;">📊</span><div><div style="font-size:14px;font-weight:600;">Export as CSV</div><div style="font-size:12px;color:var(--muted);font-weight:400;">Opens in Excel, Numbers, Google Sheets</div></div></button>
+      <button class="export-btn" onclick="exportJSON()"><span style="font-size:20px;">🗂</span><div><div style="font-size:14px;font-weight:600;">Export as JSON</div><div style="font-size:12px;color:var(--muted);font-weight:400;">Raw data backup file</div></div></button>
+      <button class="export-btn" onclick="exportPrint()"><span style="font-size:20px;">🖨</span><div><div style="font-size:14px;font-weight:600;">Print / Save as PDF</div><div style="font-size:12px;color:var(--muted);font-weight:400;">Print a report for your doctor</div></div></button>
+    </div>
+
+    <!-- iPhone Install -->
+    <div class="export-card">
+      <div class="export-title">🍎 Install on iPhone / iPad</div>
+      <div class="export-sub">Save PulseLog to your home screen — works like a native app, no App Store needed.</div>
+      <div class="install-step"><div class="step-num">1</div><div class="step-text">Open this file in <strong>Safari</strong> (must be Safari, not Chrome)</div></div>
+      <div class="install-step"><div class="step-num">2</div><div class="step-text">Tap the <strong>Share</strong> button (square with arrow ↑) at the bottom of Safari</div></div>
+      <div class="install-step"><div class="step-num">3</div><div class="step-text">Scroll down and tap <strong>"Add to Home Screen"</strong></div></div>
+      <div class="install-step"><div class="step-num">4</div><div class="step-text">Name it <strong>PulseLog</strong> and tap <strong>Add</strong> — done! ✅</div></div>
+    </div>
+
+    <!-- Apple Watch -->
+    <div class="export-card">
+      <div class="export-title">⌚ Apple Watch</div>
+      <div class="export-sub">PWAs cannot run natively on Apple Watch. Options:</div>
+      <div class="install-step"><div class="step-num">A</div><div class="step-text">Use the <strong>iPhone app</strong> on your wrist via iPhone mirroring (iOS 18+)</div></div>
+      <div class="install-step"><div class="step-num">B</div>
+        <div class="step-text">For a true Watch app, the code needs to be converted to <strong>Swift / WatchOS</strong> in Xcode — ask a developer or use a service like Bravo Studio</div>
+      </div>
+    </div>
+
+    <!-- Android Install -->
+    <div class="export-card">
+      <div class="export-title">🤖 Install on Android</div>
+      <div class="export-sub">Install directly from Chrome — no Play Store needed.</div>
+      <div class="install-step"><div class="step-num">1</div><div class="step-text">Open this file in <strong>Chrome</strong></div></div>
+      <div class="install-step"><div class="step-num">2</div><div class="step-text">Tap the <strong>three-dot menu</strong> (⋮) in the top right</div></div>
+      <div class="install-step"><div class="step-num">3</div><div class="step-text">Tap <strong>"Add to Home Screen"</strong> or <strong>"Install App"</strong></div></div>
+      <div class="install-step"><div class="step-num">4</div><div class="step-text">Tap <strong>Install</strong> — the app icon appears on your home screen ✅</div></div>
+    </div>
+
+    <!-- Hosting tip -->
+    <div class="export-card">
+      <div class="export-title">🌐 Share the app with others</div>
+      <div class="export-sub">To share a link instead of a file, host it for free on one of these platforms:</div>
+      <div class="install-step"><div class="step-num">1</div><div class="step-text"><strong>GitHub Pages</strong> — free, upload the HTML file to a repo and enable Pages</div></div>
+      <div class="install-step"><div class="step-num">2</div><div class="step-text"><strong>Netlify Drop</strong> — drag and drop the file at netlify.com/drop — instant URL</div></div>
+      <div class="install-step"><div class="step-num">3</div><div class="step-text"><strong>Vercel</strong> — vercel.com, connect your GitHub repo, auto-deploys</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <div class="nav-item active" id="nav-profile" onclick="switchTab('profile')">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke-linecap="round"/></svg>
+    <span class="nav-label">Profile</span><div class="nav-dot"></div>
+  </div>
+  <div class="nav-item" id="nav-add" onclick="switchTab('add')">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16" stroke-linecap="round"/><line x1="8" y1="12" x2="16" y2="12" stroke-linecap="round"/></svg>
+    <span class="nav-label">Add</span><div class="nav-dot"></div>
+  </div>
+  <div class="nav-item" id="nav-history" onclick="switchTab('history')">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="8" y1="9" x2="16" y2="9" stroke-linecap="round"/><line x1="8" y1="13" x2="13" y2="13" stroke-linecap="round"/></svg>
+    <span class="nav-label">History</span><div class="nav-dot"></div>
+  </div>
+  <div class="nav-item" id="nav-trends" onclick="switchTab('trends')">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><polyline points="3 17 9 11 13 15 21 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span class="nav-label">Trends</span><div class="nav-dot"></div>
+  </div>
+  <div class="nav-item" id="nav-reminders" onclick="switchTab('reminders')">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0" stroke-linecap="round"/></svg>
+    <span class="nav-label">Remind</span><div class="nav-dot"></div>
+  </div>
+  <div class="nav-item" id="nav-export" onclick="switchTab('export')">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="3" x2="12" y2="15" stroke-linecap="round"/></svg>
+    <span class="nav-label">Export</span><div class="nav-dot"></div>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let readings = JSON.parse(localStorage.getItem('bp-readings')||'[]');
+let profile = JSON.parse(localStorage.getItem('bp-profile')||'{"name":"","age":"","sex":"female","height":"","weight":""}');
+let reminders = JSON.parse(localStorage.getItem('bp-reminders')||'[]');
+let filterDays = 7;
+let isListening = false, recognition = null;
+let showSys = true, showDia = true, showPulse = true;
+
+const nowD = new Date();
+document.getElementById('r-date').value = nowD.toISOString().split('T')[0];
+document.getElementById('r-time').value = nowD.toTimeString().slice(0,5);
+document.getElementById('rem-time').value = '08:00';
+
+loadProfile(); renderHistory(); renderReminders(); checkReminders();
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+function switchTab(tab){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('screen-'+tab).classList.add('active');
+  document.getElementById('nav-'+tab).classList.add('active');
+  if(tab==='history')renderHistory();
+  if(tab==='trends')renderTrends();
+  if(tab==='profile'){loadProfile();updateStats();}
+  if(tab==='reminders')renderReminders();
+}
+
+function saveProfile(){
+  profile={name:document.getElementById('p-name').value||'User',age:parseInt(document.getElementById('p-age').value)||0,sex:document.getElementById('p-sex').value,height:parseFloat(document.getElementById('p-height').value)||0,weight:parseFloat(document.getElementById('p-weight').value)||0};
+  localStorage.setItem('bp-profile',JSON.stringify(profile));
+  loadProfile(); showToast('Profile saved ✓');
+}
+function loadProfile(){
+  if(profile.name)document.getElementById('p-name').value=profile.name;
+  if(profile.age)document.getElementById('p-age').value=profile.age;
+  document.getElementById('p-sex').value=profile.sex||'female';
+  if(profile.height)document.getElementById('p-height').value=profile.height;
+  if(profile.weight)document.getElementById('p-weight').value=profile.weight;
+  document.getElementById('profile-avatar').textContent=profile.name?(profile.name[0].toUpperCase()):'?';
+  document.getElementById('profile-display-name').textContent=profile.name||'Your Name';
+  document.getElementById('profile-display-sub').textContent=profile.height?`Age ${profile.age} · ${profile.height}cm · ${profile.weight}kg`:'Complete your profile below';
+  updateStats();
+}
+function updateStats(){
+  document.getElementById('stat-readings').textContent=readings.length;
+  if(readings.length>0){
+    document.getElementById('stat-avg-sys').textContent=Math.round(readings.reduce((a,r)=>a+r.sys,0)/readings.length);
+    document.getElementById('stat-avg-dia').textContent=Math.round(readings.reduce((a,r)=>a+r.dia,0)/readings.length);
+  }
+}
+function getBPStatus(sys,dia){
+  if(sys<120&&dia<80)return{label:'Normal',cls:'normal',badgeCls:'badge-normal'};
+  if(sys<130&&dia<80)return{label:'Elevated',cls:'elevated',badgeCls:'badge-elevated'};
+  if(sys<140||dia<90)return{label:'Stage 1',cls:'high',badgeCls:'badge-high'};
+  return{label:'Stage 2',cls:'high',badgeCls:'badge-high'};
+}
+function updateStatus(){
+  const sys=parseInt(document.getElementById('r-sys').value),dia=parseInt(document.getElementById('r-dia').value);
+  const row=document.getElementById('bp-status-row'),badge=document.getElementById('bp-badge');
+  if(sys&&dia){const st=getBPStatus(sys,dia);badge.textContent=st.label;badge.className='bp-badge '+st.badgeCls;row.style.display='block';}
+  else row.style.display='none';
+}
+function addReading(){
+  const sys=parseInt(document.getElementById('r-sys').value),dia=parseInt(document.getElementById('r-dia').value);
+  const pulse=parseInt(document.getElementById('r-pulse').value)||null;
+  const date=document.getElementById('r-date').value,time=document.getElementById('r-time').value;
+  const notes=document.getElementById('r-notes').value;
+  if(!sys||!dia){showToast('Enter systolic and diastolic');return;}
+  readings.unshift({id:Date.now(),sys,dia,pulse,date,time,notes});
+  localStorage.setItem('bp-readings',JSON.stringify(readings));
+  document.getElementById('r-sys').value='';document.getElementById('r-dia').value='';document.getElementById('r-pulse').value='';document.getElementById('r-notes').value='';document.getElementById('bp-status-row').style.display='none';
+  const n=new Date();document.getElementById('r-date').value=n.toISOString().split('T')[0];document.getElementById('r-time').value=n.toTimeString().slice(0,5);
+  showToast('Reading saved ✓');switchTab('history');
+}
+function setFilter(days,btn){filterDays=days;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderHistory();}
+function filterReadings(){if(filterDays===0)return readings;const c=new Date();c.setDate(c.getDate()-filterDays);return readings.filter(r=>new Date(r.date)>=c);}
+function renderHistory(){
+  const list=document.getElementById('reading-list');updateStats();
+  if(readings.length===0){list.innerHTML='<div class="empty-state"><div style="font-size:44px;">🩺</div><div style="font-weight:500;margin-top:10px;">No readings yet</div><div style="font-size:13px;margin-top:6px;">Add your first reading to get started</div></div>';['h-latest-sys','h-latest-dia','h-latest-pulse','h-avg-sys'].forEach(id=>document.getElementById(id).textContent='—');return;}
+  const latest=readings[0];
+  document.getElementById('h-latest-sys').textContent=latest.sys;
+  document.getElementById('h-latest-dia').textContent=latest.dia;
+  document.getElementById('h-latest-pulse').textContent=latest.pulse||'—';
+  const recent=readings.slice(0,7);
+  document.getElementById('h-avg-sys').textContent=Math.round(recent.reduce((a,r)=>a+r.sys,0)/recent.length);
+  const filtered=filterReadings();
+  list.innerHTML=filtered.length===0?'<div class="empty-state"><div style="font-size:13px;">No readings in this period</div></div>':filtered.map(r=>{
+    const st=getBPStatus(r.sys,r.dia);
+    return`<div class="reading-card"><div class="rc-circle ${st.cls}">${st.label.slice(0,2).toUpperCase()}</div><div style="flex:1;"><div class="rc-reading">${r.sys}/${r.dia} <span>mmHg</span>${r.pulse?` &nbsp;<span style="color:var(--purple);font-weight:600;font-size:13px;">♥ ${r.pulse}</span>`:''}</div><div class="rc-meta">${r.date}${r.time?' · '+r.time:''}${r.notes?' · '+r.notes:''}</div></div><span class="rc-badge ${st.badgeCls}">${st.label}</span></div>`;
+  }).join('');
+}
+
+function renderTrends(){
+  const tc=document.getElementById('trend-content');
+  if(readings.length<3){tc.innerHTML='<div class="empty-state"><div style="font-size:44px;margin-bottom:12px;">📈</div><div style="font-weight:500;">Not enough data</div><div style="font-size:13px;margin-top:6px;">Add at least 3 readings</div></div>';return;}
+  const last10=[...readings].slice(0,10).reverse();
+  const avgSys=Math.round(last10.reduce((a,r)=>a+r.sys,0)/last10.length);
+  const avgDia=Math.round(last10.reduce((a,r)=>a+r.dia,0)/last10.length);
+  const withPulse=last10.filter(r=>r.pulse);
+  const avgPulse=withPulse.length?Math.round(withPulse.reduce((a,r)=>a+r.pulse,0)/withPulse.length):null;
+  let trendSys='Stable',trendColor='var(--amber)';
+  if(readings.length>=4){const old=Math.round(readings.slice(-3).reduce((a,r)=>a+r.sys,0)/3),neu=Math.round(readings.slice(0,3).reduce((a,r)=>a+r.sys,0)/3);if(neu-old>5){trendSys='Rising ↑';trendColor='var(--red)';}else if(old-neu>5){trendSys='Falling ↓';trendColor='var(--green)';}}
+  const bmi=profile.height&&profile.weight?+(profile.weight/((profile.height/100)**2)).toFixed(1):null;
+  let bmiLabel='—',bmiColor='var(--muted)';
+  if(bmi){if(bmi<18.5){bmiLabel='Underweight';bmiColor='var(--blue)';}else if(bmi<25){bmiLabel='Normal';bmiColor='var(--green)';}else if(bmi<30){bmiLabel='Overweight';bmiColor='var(--amber)';}else{bmiLabel='Obese';bmiColor='var(--red)';}}
+  const normalCount=readings.filter(r=>getBPStatus(r.sys,r.dia).cls==='normal').length;
+  const normalPct=readings.length?Math.round((normalCount/readings.length)*100):0;
+  const morning=readings.filter(r=>r.time&&parseInt(r.time.split(':')[0])<12);
+  const evening=readings.filter(r=>r.time&&parseInt(r.time.split(':')[0])>=12);
+  const mAvg=morning.length?Math.round(morning.reduce((a,r)=>a+r.sys,0)/morning.length):null;
+  const eAvg=evening.length?Math.round(evening.reduce((a,r)=>a+r.sys,0)/evening.length):null;
+  const st=getBPStatus(avgSys,avgDia);
+  const advice=[];
+  if(st.cls==='high')advice.push({c:'var(--red)',t:'Average BP is in the high range. Please consult your doctor.'});
+  if(trendSys.includes('Rising'))advice.push({c:'var(--amber)',t:'Systolic BP trending upward over recent readings.'});
+  if(trendSys.includes('Falling'))advice.push({c:'var(--green)',t:'Great — your systolic BP is trending downward!'});
+  if(mAvg&&eAvg&&Math.abs(mAvg-eAvg)>10)advice.push({c:'var(--blue)',t:`Morning avg (${mAvg}) vs evening (${eAvg}) differ notably — track the pattern.`});
+  if(bmi&&bmi>=30)advice.push({c:'var(--amber)',t:'BMI suggests obesity, which can elevate BP risk.'});
+  if(advice.length===0)advice.push({c:'var(--green)',t:'Your readings look stable. Keep up the great habit!'});
+
+  tc.innerHTML=`
+    <div class="trend-hero">
+      <div class="trend-title">Reading trends (last ${last10.length})</div>
+      <div class="chart-toggle">
+        <button class="ctog on-sys" id="tog-sys" onclick="toggleSeries('sys')">● Systolic</button>
+        <button class="ctog on-dia" id="tog-dia" onclick="toggleSeries('dia')">● Diastolic</button>
+        <button class="ctog on-pulse" id="tog-pulse" onclick="toggleSeries('pulse')">● Pulse</button>
+      </div>
+      <div class="svg-chart-wrap"><svg id="trend-svg" width="100%" height="160" viewBox="0 0 340 160" preserveAspectRatio="xMidYMid meet"></svg></div>
+      <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--muted);"><span style="display:inline-block;width:12px;height:3px;background:var(--red);border-radius:2px;margin-right:4px;vertical-align:middle;"></span>Systolic</span>
+        <span style="font-size:11px;color:var(--muted);"><span style="display:inline-block;width:12px;height:3px;background:var(--blue);border-radius:2px;margin-right:4px;vertical-align:middle;"></span>Diastolic</span>
+        <span style="font-size:11px;color:var(--muted);"><span style="display:inline-block;width:12px;height:3px;background:var(--purple);border-radius:2px;margin-right:4px;vertical-align:middle;"></span>Pulse</span>
+      </div>
+    </div>
+    <div class="insight-grid">
+      <div class="insight-card"><div class="ic-icon">📊</div><div class="ic-label">Sys trend</div><div class="ic-val" style="color:${trendColor};">${trendSys}</div><div class="ic-sub">recent direction</div></div>
+      <div class="insight-card"><div class="ic-icon">💚</div><div class="ic-label">Normal days</div><div class="ic-val">${normalPct}%</div><div class="streak-bar"><div class="streak-fill" style="width:${normalPct}%;background:${normalPct>70?'var(--green)':normalPct>40?'var(--amber)':'var(--red)'};"></div></div></div>
+      <div class="insight-card"><div class="ic-icon">☀️</div><div class="ic-label">Morning sys</div><div class="ic-val">${mAvg||'—'}</div><div class="ic-sub">${morning.length} readings</div></div>
+      <div class="insight-card"><div class="ic-icon">🌙</div><div class="ic-label">Evening sys</div><div class="ic-val">${eAvg||'—'}</div><div class="ic-sub">${evening.length} readings</div></div>
+      <div class="insight-card"><div class="ic-icon">❤️</div><div class="ic-label">Avg pulse</div><div class="ic-val" style="color:var(--purple);">${avgPulse||'—'}</div><div class="ic-sub">bpm resting</div></div>
+      <div class="insight-card"><div class="ic-icon">⚖️</div><div class="ic-label">BMI</div><div class="ic-val" style="color:${bmiColor};">${bmi||'—'}</div><div class="ic-sub">${bmiLabel}</div></div>
+    </div>
+    <div class="card"><div class="card-title">Insights</div><div class="advice-list">${advice.map(a=>`<div class="advice-item"><div class="advice-dot" style="background:${a.c};"></div><div class="advice-text">${a.t}</div></div>`).join('')}</div></div>
+  `;
+  drawChart(last10);
+}
+
+function toggleSeries(s){
+  if(s==='sys')showSys=!showSys;else if(s==='dia')showDia=!showDia;else showPulse=!showPulse;
+  const btn=document.getElementById('tog-'+s);
+  const cls={'sys':'on-sys','dia':'on-dia','pulse':'on-pulse'}[s];
+  const active=(s==='sys'&&showSys)||(s==='dia'&&showDia)||(s==='pulse'&&showPulse);
+  if(active){btn.classList.add(cls);btn.style.opacity='1';}else{btn.classList.remove(cls);btn.style.opacity='0.4';}
+  drawChart([...readings].slice(0,10).reverse());
+}
+
+function drawChart(data){
+  const svg=document.getElementById('trend-svg');if(!svg)return;
+  const W=340,H=140,PL=32,PR=10,PT=10,PB=24,cW=W-PL-PR,cH=H-PT-PB,n=data.length;
+  if(n<2)return;
+  const allVals=[];
+  if(showSys)data.forEach(r=>allVals.push(r.sys));
+  if(showDia)data.forEach(r=>allVals.push(r.dia));
+  if(showPulse)data.filter(r=>r.pulse).forEach(r=>allVals.push(r.pulse));
+  if(allVals.length===0){svg.innerHTML='';return;}
+  const minV=Math.min(...allVals)-10,maxV=Math.max(...allVals)+10;
+  const scX=i=>(PL+(i/(n-1))*cW),scY=v=>(PT+cH-((v-minV)/(maxV-minV))*cH);
+  const mkLine=(key,color)=>{
+    const pts=data.map((r,i)=>{const v=key==='pulse'?r.pulse:r[key];if(!v)return null;return`${scX(i).toFixed(1)},${scY(v).toFixed(1)}`;}).filter(Boolean);
+    if(pts.length<2)return'';
+    return`<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>${data.map((r,i)=>{const v=key==='pulse'?r.pulse:r[key];if(!v)return'';return`<circle cx="${scX(i).toFixed(1)}" cy="${scY(v).toFixed(1)}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>`;}).join('')}`;
+  };
+  let yL='';
+  for(let i=0;i<=4;i++){const v=Math.round(minV+(maxV-minV)*(i/4)),y=scY(v).toFixed(1);yL+=`<text x="${PL-4}" y="${y}" text-anchor="end" dominant-baseline="middle" font-size="9" fill="#aaa">${v}</text><line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#eee" stroke-width="0.5"/>` ;}
+  const xL=data.map((r,i)=>`<text x="${scX(i).toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="9" fill="#aaa">${r.date.slice(5)}</text>`).join('');
+  svg.innerHTML=yL+xL+(showSys?mkLine('sys','#E24B4A'):'')+(showDia?mkLine('dia','#185FA5'):'')+(showPulse?mkLine('pulse','#534AB7'):'');
+}
+
+// Reminders
+function addReminder(){
+  const time=document.getElementById('rem-time').value,label=document.getElementById('rem-label').value||'BP Check',repeat=document.getElementById('rem-repeat').value;
+  if(!time){showToast('Please set a time');return;}
+  reminders.push({id:Date.now(),time,label,repeat,enabled:true});
+  localStorage.setItem('bp-reminders',JSON.stringify(reminders));
+  document.getElementById('rem-label').value='';renderReminders();showToast('Reminder added ✓');
+  requestNotificationPermission();
+}
+function renderReminders(){
+  const list=document.getElementById('reminder-list');
+  if(reminders.length===0){list.innerHTML='<div style="padding:22px;text-align:center;color:var(--muted);font-size:13px;">No reminders yet</div>';return;}
+  list.innerHTML=reminders.map((r,i)=>`<div class="reminder-item"><div class="reminder-info"><div class="reminder-time">${r.time}</div><div class="reminder-label">${r.label} · ${r.repeat==='daily'?'Every day':r.repeat==='weekdays'?'Weekdays':'Weekends'}</div></div><label class="toggle"><input type="checkbox" ${r.enabled?'checked':''} onchange="toggleReminder(${i},this.checked)"><span class="slider"></span></label><button class="del-btn" onclick="deleteReminder(${i})">×</button></div>`).join('');
+}
+function toggleReminder(i,val){reminders[i].enabled=val;localStorage.setItem('bp-reminders',JSON.stringify(reminders));}
+function deleteReminder(i){reminders.splice(i,1);localStorage.setItem('bp-reminders',JSON.stringify(reminders));renderReminders();showToast('Reminder removed');}
+function requestNotificationPermission(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission().then(p=>{if(p==='granted')showToast('Notifications enabled ✓');});}
+function checkReminders(){if(!('Notification'in window)||Notification.permission!=='granted')return;setInterval(()=>{const now=new Date(),cur=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,day=now.getDay();reminders.filter(r=>r.enabled&&r.time===cur).forEach(r=>{const ok=r.repeat==='daily'||(r.repeat==='weekdays'&&day>=1&&day<=5)||(r.repeat==='weekends'&&(day===0||day===6));if(ok)new Notification('PulseLog',{body:r.label+' — time to check your BP!'});});},60000);}
+
+// Export
+function exportCSV(){
+  if(readings.length===0){showToast('No readings to export');return;}
+  const hdr='Date,Time,Systolic,Diastolic,Pulse,Status,Notes';
+  const rows=readings.map(r=>{const st=getBPStatus(r.sys,r.dia);return`${r.date},${r.time||''},${r.sys},${r.dia},${r.pulse||''},${st.label},"${r.notes||''}"`;});
+  const csv=[hdr,...rows].join('\n');
+  download('pulselog-readings.csv','text/csv',csv);
+  showToast('CSV exported ✓');
+}
+function exportJSON(){
+  if(readings.length===0){showToast('No readings to export');return;}
+  const data=JSON.stringify({profile,readings,exportedAt:new Date().toISOString()},null,2);
+  download('pulselog-backup.json','application/json',data);
+  showToast('JSON exported ✓');
+}
+function exportPrint(){
+  const rows=readings.map(r=>{const st=getBPStatus(r.sys,r.dia);return`<tr><td>${r.date}</td><td>${r.time||'—'}</td><td style="font-weight:600;">${r.sys}/${r.dia}</td><td>${r.pulse||'—'}</td><td style="color:${st.cls==='normal'?'#639922':st.cls==='elevated'?'#BA7517':'#A32D2D'};font-weight:600;">${st.label}</td><td>${r.notes||''}</td></tr>`;}).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>PulseLog Report — ${profile.name||'Patient'}</title><style>body{font-family:sans-serif;padding:30px;color:#1a1a1a;}h1{color:#E24B4A;margin-bottom:4px;}p{color:#888;margin-bottom:20px;}table{width:100%;border-collapse:collapse;font-size:14px;}th{background:#E24B4A;color:#fff;padding:10px 12px;text-align:left;}td{padding:9px 12px;border-bottom:1px solid #eee;}tr:nth-child(even){background:#fafafa;}@media print{body{padding:10px;}}</style></head><body><h1>🩺 PulseLog — BP Report</h1><p>Patient: <strong>${profile.name||'—'}</strong> · Age: ${profile.age||'—'} · Generated: ${new Date().toLocaleDateString()}</p><table><thead><tr><th>Date</th><th>Time</th><th>BP (mmHg)</th><th>Pulse</th><th>Status</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+  w.document.close();w.print();
+}
+function download(filename,type,content){
+  const blob=new Blob([content],{type});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href);
+}
+
+// Voice
+function toggleVoice(){if(!isListening)startListening();else stopListening();}
+function startListening(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){document.getElementById('voice-transcript').style.display='block';document.getElementById('voice-transcript').textContent='⚠ Voice not supported. Use Chrome on Android or desktop.';return;}
+  recognition=new SR();recognition.lang='en-US';recognition.interimResults=true;recognition.continuous=false;
+  recognition.onstart=()=>{isListening=true;document.getElementById('voice-btn').classList.add('listening');document.getElementById('voice-label').textContent='Listening...';document.getElementById('voice-transcript').style.display='block';document.getElementById('voice-transcript').textContent='🎙 Speak now...';};
+  recognition.onresult=(e)=>{const t=Array.from(e.results).map(r=>r[0].transcript).join(' ');document.getElementById('voice-transcript').textContent=t;if(e.results[e.results.length-1].isFinal)parseVoice(t);};
+  recognition.onerror=()=>{document.getElementById('voice-transcript').textContent='⚠ Could not hear — try again.';stopListening();};
+  recognition.onend=()=>stopListening();recognition.start();
+}
+function stopListening(){isListening=false;if(recognition)recognition.stop();document.getElementById('voice-btn').classList.remove('listening');document.getElementById('voice-label').textContent='Tap mic to speak';}
+function parseVoice(text){
+  const t=text.toLowerCase();
+  const over=t.match(/(\d{2,3})\s*(?:over|\/|by)\s*(\d{2,3})/);
+  const pulse=t.match(/(?:pulse|heart rate|hr)\s*(?:is\s*)?(\d{2,3})/);
+  if(over){document.getElementById('r-sys').value=over[1];document.getElementById('r-dia').value=over[2];}
+  else{const s=t.match(/sys(?:tolic)?\s*(\d{2,3})/),d=t.match(/dia(?:stolic)?\s*(\d{2,3})/);if(s)document.getElementById('r-sys').value=s[1];if(d)document.getElementById('r-dia').value=d[1];}
+  if(pulse)document.getElementById('r-pulse').value=pulse[1];
+  updateStatus();
+}
+</script>
+</body>
+</html>
